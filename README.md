@@ -43,3 +43,10 @@ una variable númerica
 * Cabin: El identificador de la cabina que utilizo la persona durante el viaje. Es una variable nominal
 * Embarked: Indica el lugar de embarque de la persona. Es una variable nominal. (C = Cherbourg, Q =
 Queenstown, S = Southampton)
+
+### Ficheros
+
+- betitajara_PRAC2.RMD: Código con el que se genera el reporte de la práctica
+- betitajara_PRAC2.pdf: Respuestas a las preguntas
+- train.csv: Dataset usado en el análisis en formato CSV
+- test.csv: Dataset usado en el análisis en formato CSV
