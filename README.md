@@ -3,7 +3,7 @@
 <img src="http://www.uoc.edu/portal/_resources/common/imatges/marca_UOC/UOC_Masterbrand.jpg", align="left">
 </div>
 <div style="float: right; width: 50%;">
-<p style="margin: 0; padding-top: 22px; text-align:right;">Tipología y ciclo de vida de los datos · PRAC1</p>
+<p style="margin: 0; padding-top: 22px; text-align:right;">Tipología y ciclo de vida de los datos · PRAC2</p>
 <p style="margin: 0; text-align:right;">2017-2 · Máster universitario en Ciencia de datos (Data science)</p>
 </div>
 </div>
