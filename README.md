@@ -23,23 +23,23 @@ Trabajo realizado de forma individual por Beatriz Elena Jaramillo Gallego.
 Los datos para el análisis se ha obtenido a partir de este enlace en Kaggle Titanic: Machine Learning from Disaster (https://www.kaggle.com/c/titanic) y está constituido por 12 (variables) que presentan 891 pasajeros(filas o registros) en el archivo de train y 418 pasajeros(filas o registros) en el archivo de test.
 
 Los datos se han dividido en dos grupos:
-• Conjunto de entrenamiento (train.csv): El conjunto de entrenamiento se debe usar para construir sus
+* Conjunto de entrenamiento (train.csv): El conjunto de entrenamiento se debe usar para construir sus
 modelos de aprendizaje automático
-• Conjunto de prueba (test.csv): El conjunto de prueba se debe usar para ver qué tan bien se desempeña
+* Conjunto de prueba (test.csv): El conjunto de prueba se debe usar para ver qué tan bien se desempeña
 su modelo en datos no vistos.
 
 __Variables__
-• PassengerId: Un identificador numerico del pasajero. Es una variable númerica.
-• Survived: Varibale binaria donde se indica si el pasajero sobrevivio o no. (0 = No, 1 = Yes)
-• Pclass: La clase en la que viajaba el pasajero. Es una variable númerica. (1 = 1st, 2 = 2nd, 3 = 3rd)
-• Name: El nombre del pasajero. Es una variable nominal.
-• Sex: El sexo del pasajero. Es una varuable nominal.
-• Age: La edad del pasajero. Es una variable númerica.
-• SibSp: Numero de familiares cosanguineos de la persona abordo del Titanic. Es una variable númerica
-• Parch: Numero de familaires de diferente grado que acompañaban a la persona abordo del Titanic. Es
+* PassengerId: Un identificador numerico del pasajero. Es una variable númerica.
+* Survived: Varibale binaria donde se indica si el pasajero sobrevivio o no. (0 = No, 1 = Yes)
+* Pclass: La clase en la que viajaba el pasajero. Es una variable númerica. (1 = 1st, 2 = 2nd, 3 = 3rd)
+* Name: El nombre del pasajero. Es una variable nominal.
+* Sex: El sexo del pasajero. Es una varuable nominal.
+* Age: La edad del pasajero. Es una variable númerica.
+* SibSp: Numero de familiares cosanguineos de la persona abordo del Titanic. Es una variable númerica
+* Parch: Numero de familaires de diferente grado que acompañaban a la persona abordo del Titanic. Es
 una variable númerica
-• Ticket: El ticket correspondiente al pasajero al momento del abordaje. Es una variable nominal.
-• Fare: La tarifa del ticket segun la clase en la que abordo el pasajero. Es una variable númerica
-• Cabin: El identificador de la cabina que utilizo la persona durante el viaje. Es una variable nominal
-• Embarked: Indica el lugar de embarque de la persona. Es una variable nominal. (C = Cherbourg, Q =
+* Ticket: El ticket correspondiente al pasajero al momento del abordaje. Es una variable nominal.
+* Fare: La tarifa del ticket segun la clase en la que abordo el pasajero. Es una variable númerica
+* Cabin: El identificador de la cabina que utilizo la persona durante el viaje. Es una variable nominal
+* Embarked: Indica el lugar de embarque de la persona. Es una variable nominal. (C = Cherbourg, Q =
 Queenstown, S = Southampton)
