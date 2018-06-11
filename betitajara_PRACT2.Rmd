@@ -1,5 +1,5 @@
 ---
-title: 'Práctica 2: Limpieza y validación de los datos'
+title: 'Práctica 2: Limpieza y Validación de los Datos'
 author: "Beatriz Elena Jaramillo Gallego"
 date: "08 de Mayo de 2018"
 output: pdf_document
@@ -19,11 +19,11 @@ knitr::opts_chunk$set(echo = TRUE)
 library("knitr")
 library("dplyr")              #   Para usar join
 library("VIM")
+library("gridExtra")
+library("tinytex")
 library("grDevices")
 library("ggfortify")
 library("corrplot")
-library("gridExtra")
-library("ggbiplot")
 library("psych")            #   Para usar pca
 library("e1071")            #   Para usar SVM
 library("rpart")            #   Para hacer uso de Arboles de Decision
@@ -35,6 +35,12 @@ library("ggplot2")          #   Para graficos de mejor calidad
 library("GGally")
 library("ape")              #   Para visualizacion de graficos de arboles mejorados
 library("party")            #   Para la generacion de Arboles de decision
+library("survival")           #   Para Análisis de superviviencia
+library("KMsurv")
+library("survMisc")
+library("survminer")
+library("flexsurv")
+library("actuar")
 ```
 
 \renewcommand{\baselinestretch}{1.1}
@@ -79,8 +85,6 @@ Los objetivos concretos de esta práctica son:
 
 ## 1. Descripción del dataset 
 
-¿Por qué es importante y qué pregunta/problema pretende responder?
-
 Los datos para el análisis se ha obtenido a partir de este enlace en Kaggle Titanic: Machine Learning from Disaster (https://www.kaggle.com/c/titanic) y está constituido por 12 (variables) que presentan 891 pasajeros(filas o registros) en el archivo de train y 418 pasajeros(filas o registros) en el archivo de test.
 
 Los datos se han dividido en dos grupos:
@@ -105,6 +109,10 @@ __Variables__
 \item  Embarked: Indica el lugar de embarque de la persona. Es una variable nominal. (C = Cherbourg, Q = Queenstown, S = Southampton)
 \end{itemize}
 
+__Pregunta/problema pretende responder__
+Problema: Podria llegarse a determinar/predecir la superviviencia de los pasajeros del Titanic?
+Para reponder el anterior problema se dede tener en cuenta las caracteristicas como edad, sexo y la tarifa del ticket según la clase en la que abordo el pasajero. Después de realizar un análisis de superviviencia podré responder esta pregunta.
+
 __Notas Variables__
 Pclass: un proxy para el estado socio-económico (SES)
 1er = superior
@@ -120,46 +128,39 @@ Padre = madre, padre
 Niño = hija, hijo, hijastra, hijastro
 Algunos niños viajaban solo con una niñera, por lo tanto parch = 0 para ellos.
 
+\newpage
+
 ## 2. Integración y selección
 __Integración y selección de los datos de interés a analizar.__
 
-Inicialmente hare un al tratar de unir las 2 bases de datos (train y test), y para hacer un vistazo genereal de como estan los datos, no he podido porque el archivo train tiene 12 variables y el test 11 variables, la variable que diferencia es Survived.
-
-He tomado la decisón de responder ¿Podria llegarse a determinar si los pasajeros que estan en el dataset test si sobrevivieron o no, basandome en los datos de entrenamiento?
-
+Hare un vistazo genereal de como llegan los datos en el dataset train, el cual tiene las 12 variables anteriormente descritas.
 ```{r train}
 #setwd("C:/Users/Admin/Dropbox/Master/Tipologia de Datos/PRACTICA 2")
-train <- read.csv2("train.csv",header = TRUE,sep = ";",dec = ".",stringsAsFactors=FALSE)
+titanic <- read.csv2("train.csv",header = TRUE,sep = ";",dec = ",",stringsAsFactors=FALSE)
 cat(paste0("Carga fichero train.csv OK.","\n\n"))
-str(train)
-```
-
-```{r test}
-test <- read.csv2("test.csv",header = TRUE,sep = ";",dec = ".")
-cat(paste0("Carga fichero test.csv OK.","\n\n"))
-str(test)
+str(titanic)
 ```
 
 Variables Categoricales: Survived, Sex, and Embarked. Ordinal: Pclass.
 
 Variables Continuas: Age, Fare. Discrete: SibSp, Parch
 
-He unido los dos dataset (train y test) para pode trabajar con ellos de manera mas sencilla, pero como el dataset test no tiene la variable Survived, he creado la columna "Survived" y la he llenado con NA
+Las Variables Cabin, Ticket y PassengerId son informativas y serán usasdas en el análisis.
 
-```{r}
-test$Survived <- NA
-titanic <- rbind(train,test)
-summary(titanic)
-```
+Haciendo algún tratamiento de datos. La variable __Fare__ debe ser numerica y se encuentra como factor, la he convertido en numerica.
 
 ```{r}
 titanic$Name <- as.factor(titanic$Name)
 titanic$Sex <- as.factor(titanic$Sex)
 titanic$Ticket <- as.factor(titanic$Ticket)
 titanic$Embarked <- as.factor(titanic$Embarked)
+titanic$Age <- as.numeric(titanic$Age)
+titanic$Fare <- as.numeric(titanic$Fare)
 
 summary(titanic)
 ```
+
+\newpage
 
 ## 3. Limpieza de los datos
 
@@ -168,17 +169,20 @@ summary(titanic)
 ¿Los datos contienen ceros o elementos vacíos? ¿Cómo gestionarías cada uno de estos casos?
 
 Hay 263 datos __NA__ en la variable Age, hay 418 NA en la variable __Survived__, que son los valores que anteriormente adicione del dataset test.
-La variable __Fare__ debe ser numerica y se encuentra como factor, la he convertido en numerica.
 
 ```{r}
-titanic$Fare <- as.numeric(titanic$Fare)
+# Números de valores desconocidos por campo
+sapply(titanic, function(x) sum(is.na(x)))
 
-cat(paste0("Valores vacios Age ",round((263/1309)*100,2)),"%")
+cat("\n\n")
+cat(paste0("Valores vacios Age ",round((177/891)*100,2)),"%")
 cat("\n\n")
 
-cat(paste0("Valores vacios Fare ",round((36/1309)*100,2)),"%")
+cat(paste0("Valores vacios Fare ",round((15/891)*100,2)),"%")
 cat("\n\n")
+```
 
+```{r}
 # Para aquellos pasajeros que se desconoce la cabina, se le cambia su vacio  por un string que indica desconocido
 titanic$Cabin[titanic$Cabin==""] <- "Unknown"
 titanic$Cabin <- as.factor(titanic$Cabin)
@@ -187,42 +191,20 @@ titanic$Cabin <- as.factor(titanic$Cabin)
 errores = which(titanic$Embarked=="")
 titanic$Embarked[errores] = "S"
 titanic$Embarked <- factor(titanic$Embarked)
-
-# Números de valores desconocidos por campo
-sapply(titanic, function(x) sum(is.na(x)))
 rm(errores)
 ```
 
-Para manejar los registros que contienen valores desconocidos para algún campo, una opción podría ser eliminar los registros que incluyen este tipo de valores de la variable Age, pero ello supondría desaprovechar el 20.09% de esta información y para la varaible Fare quitar los NA upondría desaprovechar el 2.75% de esta información
+Para manejar los registros que contienen valores desconocidos para algún campo, una opción podría ser eliminar los registros que incluyen este tipo de valores de la variable Age, pero ello supondría desaprovechar el 19.87% de esta información y para la varaible Fare quitar los NA upondría desaprovechar el 1.68% de esta información
 
 Se empleará el método para imputa de una manera sofisticada para que no toda la matriz de distancia tenga que calcularse: la imputación basada en k vecinos más próximos (en inglés, kNN-imputation). Por lo tanto, la implementación del paquete VIM también es aplicable para conjuntos de datos razonablemente grandes
 
-Como tengo 12 datos en donde la variable Age son números inferiores a 1, por lo tanto he decido multiplicar estos datos por 100, ya que considero que ha sido un error de digitación y no quisiera perderlos, he hecho esto antes de la imputación.
-
 ```{r imputacion}
-#Cambio las observaciones <1 y las multiplico por 100 y luego las vuelvo a unir a titanic
-edad_aux <- filter(titanic, titanic$Age<1)
-edad_aux$Age <- edad_aux$Age*100
-titanic <- dplyr::full_join(titanic,edad_aux) 
-titanic <-arrange(titanic, PassengerId)
-rm(edad_aux)
 # Imputación de valores mediante la función kNN() del paquete VIM
 suppressWarnings(suppressMessages(library(VIM)))
-
 titanic$Age <- kNN(titanic)$Age
 titanic$Fare <- kNN(titanic)$Fare
-
 sapply(titanic, function(x) sum(is.na(x)))
-
 summary(titanic)
-```
-
-```{r}
-#   Listo el preprocesado del dataset, separo en train y test 
-train <- titanic[1:891,]
-test <- titanic[892:1309,]
-#Quitamos la columna Survived de test usada para unir los datos
-test$Survived = NULL
 ```
 
 ### 3.2. Valores extremos
@@ -231,114 +213,146 @@ __Identificación y tratamiento de valores extremos__
 Los valores extremos o outliers son aquellos que parecen no ser congruentes sin los comparamos con el resto de los datos.
 
 ```{r}
-ggpairs(train[c(2,3,6,7,8,10)])
+ggpairs(titanic[c(2,3,6,7,8,10)])
 ```
 
 ```{r}
-#gráfico la variable Age, sin NA y valores <1 corregidos
-ggplot(train, aes(x = Age)) +
+#gráfico la variable Age, sin NA
+ggplot(titanic, aes(x = Age)) +
     geom_histogram(fill = "darkblue", alpha = .5) +
     geom_histogram(colour = "black")+
     facet_wrap(~ Survived)
 ```
 
 ```{r}
-boxplot.stats(train$Age)$out
+boxplot.stats(titanic$Age)$out
 ```
 
 ```{r}
 #gráfico la variable Fare
-ggplot(train, aes(x = Fare)) +
+ggplot(titanic, aes(x = Fare)) +
     geom_histogram(fill = "darkblue", alpha = .5) +
     geom_histogram(colour = "black")+
     facet_wrap(~ Survived)
 ```
 
 ```{r}
-boxplot.stats(train$Fare)$out
+boxplot.stats(titanic$Fare)$out
 ```
 
 ```{r}
-p <- ggplot(train, aes(x=Survived, y=Age,fill=Survived)) + 
+p <- ggplot(titanic, aes(x=Survived, y=Age,fill=Survived)) + 
     geom_boxplot() 
-q <- ggplot(train, aes(x=Survived, y=Fare,fill=Survived)) + 
+q <- ggplot(titanic, aes(x=Survived, y=Fare,fill=Survived)) + 
     geom_boxplot() 
 
 grid.arrange(p,q,ncol = 2)
 ```
 
+En este caso los datos atipicos surgen de un error de procedimiento, tales como la entrada de datos o un error de codificacion. Estos casos atipicos deberan subsanarse en el filtrado de los datos, y si no se puede, deberan eliminarse del analisis o recodificarse como datos ausentes.
+
+Estos datos "atipicos" los dejare como están ya que los he filtrado y estos pasajeros son los que viajan en Primera Clase y 5 casos que viajan en 2 clase y el valor de su pasaje concuerda.
+
+Cuando termine de realizar el análisis sin quitar estos datos, realizare un análisis similar y quitare estos datos para posteriormente hacer una comparación y concluir si estos 108 casos tienen un valor significante en este análisis, pero a prioro podría decirse que tiene un valor significativo ya que se sabe que las personas de 1 clase son las que tenian mayor posibilidad de sobrevivir con respecto a las demás clases.
+```{r}
+length(boxplot.stats(titanic$Fare)$out)
+ati_class1 <- filter(titanic, titanic$Fare >=66)
+head(ati_class1)
+```
 
 Otras variables númericas que se utilizan en el problema.
 
 ```{r}
 # La cantidad de personas en cada clase
-p <- ggplot(train, aes(x=Pclass)) + 
-  geom_histogram()
-
-# La edad de las personas
-q <- ggplot(train, aes(x=Age)) + 
+p <- ggplot(titanic, aes(x=Pclass)) + 
   geom_histogram()
 
 # La cantidad hermanos/conyuges de la personas
-r <- ggplot(train, aes(x=SibSp)) + 
+r <- ggplot(titanic, aes(x=SibSp)) + 
   geom_histogram()
 
 # La cantidad de parientes y niños abordo 
-s <- ggplot(train, aes(x=Parch)) + 
+s <- ggplot(titanic, aes(x=Parch)) + 
   geom_histogram()
 
 # La tarifas de los tickets por personas
-t <- ggplot(train, aes(x=Fare)) + 
+t <- ggplot(titanic, aes(x=Fare)) + 
   geom_histogram()
 
-grid.arrange(p,q,r,s,t,ncol = 2)
+grid.arrange(p,r,s,t,ncol = 2)
 ```
+
+\newpage
 
 ## 4. Análisis de los datos.
 
 ### 4.1. Selección de los grupos de datos a analizar
 __Selección de los grupos de datos que se quieren analizar/comparar (planificación de los análisis a aplicar)__
 
-```{r}
-#Analisis de superviviencia
-#   Con el caso de los sobrevientes o no
-ggplot(train, aes(x=Survived)) + 
-  geom_histogram()
+Los métodos estadísticos utilizado en el análisis de supervivencia frecuentemente presentan cierta complejidad en los cálculos, esto debido a la naturaleza de las observaciones las cuales suelen presentar censura y/o truncamiento. La utilización de software estadístico para realizar dicho análisis se ha vuelto indispensable en la práctica.
 
-table(as.factor(train$Survived)) #  Cantidades en una tabla
-```
+__Estimador de Kaplan-Meier y Fleming-Harrington__
 
-Podemos observar que alrededor del 55.45% no sobrevivio y el 44.55% sobrevivio.
+Los estimadores de Kaplan-Meier y Fleming-Harrington para la función de supervivencia es obtenido a través paquete estadístico survival mediante la función survfit(). Esta función en su forma más sencilla, solo requiere un objeto de supervivencia creado por la función Surv(). Los argumentos de la función survfit() son los siguientes:
+
+\begin{enumerate}
+\item formula. Un objeto fórmula y ~ x, que debe tener un objeto Surv como variable respuesta a la izquierda del " ~ " y, si se desea, el nombre de las covariables por la derecha. Uno de los términos puede ser un objeto estrato. Para una sola curva de supervivencia del lado derecho se coloca ~1.
+\item data. objeto data frame donde están los datos.
+\item type. Tipo de estimador: “kaplan-meier” o “fleming-harrington”.
+\end{enumerate}
+    
+__Arboles de Decision__
+Un Árbol de Decisión es un modelo de predicción utilizado para modelar construcciones lógicas sobre el contenido de bases de datos, para la toma decisiones en base a esas entradas, es decir, es una forma gráfica y analítica de representar todos los eventos que pueden surgir a partir de una decisión asumida en cierto momento. Estoy comenzando a comprender esta herramienta estadística, toda vez que un heterogéneo conjunto de variables condicionan los resultados clínicos de nuestros pacientes y nos pueden ayudar a entender mejor el proceso de salud enfermedad, sobre todo en el área de la patología y medicina oral.
 
 ### 4.2. Normalidad
 __Comprobación de la normalidad y homogeneidad de la varianza.__
 
 Para la comprobación de que los valores que toman nuestras variables cuantitativas provienen de una población con distribución normal, utilizaremos la prueba de normalidad de Anderson-Darling.
 
-Con esto, comprobaremos que para que cada prueba se obtiene un p-valor superior al nivel de significación prefijado $\alpha = 0, 05$. Si esto se cumple, entonces se considera que la variable se distribuye normalmente.
+Con esto, comprobaremos que para que cada prueba se obtiene un p-valor superior al nivel de significación prefijado alpha = 0, 05. Si esto se cumple, entonces se considera que la variable se distribuye normalmente.
 
+(He incluido Age y Fare, ya que despuès de haber hecho las correcciones pertinentes porque estas varibles son también numéricas)
 ```{r}
 library(nortest)
 alpha = 0.05
-col.names = colnames(train)
-for (i in 1:ncol(train)) {
+col.names = colnames(titanic)
+for (i in 1:ncol(titanic)) {
     if (i == 1) cat("Variables que no se distribuyen normalmente:\n")
-    if (is.integer(train[,i]) | is.numeric(train[,i])) {
-        p_val = ad.test(train[,i])$p.value
+    if (is.integer(titanic[,i]) | is.numeric(titanic[,i])) {
+        p_val = ad.test(titanic[,i])$p.value
         if (p_val < alpha) {
             cat(col.names[i])
             # Format output
-    if (i < ncol(train) - 1) cat(", ")
+    if (i < ncol(titanic) - 1) cat(", ")
         }
     }
 }
 ```
+Luego se estudia la homogeneidad de varianzas mediante la aplicación del test de Fligner-Killeen. En este caso, estudiaremos esta homogeneidad en cuanto a los grupos conformados por las edades de los pasajeros que han o no sobrevivido. En el siguiente test, la hipótesis nula consiste en que ambas varianzas son iguales.
 
 ```{r}
-fligner.test(Age ~ Survived, data = train)
+fligner.test(Age ~ Survived, data = titanic)
 ```
+Puesto que obtenemos un p-valor superior a 0,05, aceptamos la hipótesis de que las varianzas de ambas muestras son homogéneas.
 
-Obtenemos un p-valor superior a 0,05, aceptamos la hipótesis de que las varianzas de ambas muestras son homogéneas.
+```{r}
+par(mfrow=c(1,2))
+qqnorm(titanic$Age); qqline(titanic$Age)
+# p-plot: you should observe a good fit of the straight line
+probplot(titanic$Age, qdist=qnorm)
+```
+Las desviaciones de la línea recta son leves. Esto indica una distribución normal.
+
+El histograma:
+```{r}
+# Let's overlay a PDG on a histogram of age
+ggplot(titanic, aes(x=Age)) + 
+    ggtitle("Passenger Age") + 
+    xlab("Age") + 
+    ylab("Density") + 
+    geom_histogram(aes(y=..density..), binwidth=1)+
+    geom_density(alpha=.5, fill="#FFFFFF")
+```
 
 ### 4.3. Pruebas Estadísticas
 __Aplicación de pruebas estadísticas para comparar los grupos de datos__
@@ -346,97 +360,210 @@ __Aplicación de pruebas estadísticas para comparar los grupos de datos__
 En función de los datos y el objetivo del estudio, aplicar pruebas de contraste de hipótesis, correlaciones, regresiones, etc.
 
 Ahora poseemos un mejor conocimiento de los elementos y atributos de las variables, pero esta no nos dicen la manera en que se relacionan. Para ello apliacaremos un analisis de componentes principales al conjunto de datos.
-
-```{r, message=FALSE, warning=FALSE}
-#   Observemos el Analisis de Componentes Principales (ACP) de las variables cuantitativas
-cuant <- data.frame(
-    train$Survived,train$Pclass,train$Age,train$Parch,train$SibSp,train$Fare)
-train.pca <- pca(cuant)
-train.pca
-```
-
-Obtenido el PCA, observemos claramente la correlación de las variables:
-
+ 
+__Correlación entre variables__
+En primer lugar, procedemos a realizar un análisis de correlación entre las distintas variables
+para determinar cuáles de ellas ejercen una mayor influencia sobre la superviviencia.
+Para ello, se utilizará el coeficiente de correlación de Spearman, puesto que hemos visto que
+tenemos datos que no siguen una distribución normal.
+ 
 ```{r}
-#   Viendo las correlaciones de las variables involucradas en el PCA, procedemos
-#   a ver aquellas variables que parecieran tener alguna relacion entre si
+#variables cuantitativas
+cuant <- data.frame(
+    titanic$Survived,titanic$Pclass,titanic$Age,titanic$Parch,titanic$SibSp,titanic$Fare)
+#   Cuales varaibles parecieran tener alguna relacion entre si
 M <- cor(cuant)
 round(M,2)
+#Correlación
+corrplot.mixed(M, lower.col = "black", number.cex = .7)
+
 ```
 
-Podemos observar que entre las variables cuantitativas, hay una serie de resultados interesantes:
+Las variables Survived con Pclass y Fare estan altamente correlacionadas.
 
-* Existe una correlacion negativa significativa entre la clase en la que abordo el pasajero y su tarifa y su supervivencia. Esto se explica dado que las personas de primera clase pagaban una tarifa mucho mayor por abordar y tambien podemos decir que la mayoria de las personas al ser menor la cantidad de personas en primera clase con respecto a las otras dos, estos tenian una mayor posibilidad de sobrevivir, mientras que la segunda y la tercera clase ocurre lo contrario. 
+#### Regresión Lineal
+Podría resultar útil realizar predicciones sobre la supervivencia de los pasajeros del Titanic dadas las varaibles que tenemos a nuestra disposición. Calcularé un modelo de regresión lineal utilizando regresores tanto cuantitativos como cualitativos con el que poder realizar las predicciones para predecir la supervivencia y ver el peso y sentido de cada una de las variables.
 
-```{r}
-#   Con respecto al Sexo de las personas podemos ver la siguiente distribucion
-table(train$Sex)
+```{r regresion_lineal}
+(gender_model <- lm(Survived~Sex, data=titanic))
+summary(gender_model)$r.squared
+```
+
+Este modelo predice que las mujeres tienen un 74.2% de supervivencia y los hombres tienen un 74.2 - 55.3 = 18.9% de probabilidad de supervivencia.
+
+Haremos una regesión lineal con todas las variables.
+
+```{r regresion_lineal2}
+(gender_model2 <- lm(Survived~Pclass+Sex+Age+SibSp+Parch+Fare+Embarked, data=titanic))
+summary(gender_model2)$r.squared
+```
+
+Luego utilizando las variables que estén más correlacionadas con respecto a Survived. Así, de entre todos los modelos que tengamos, escogeremos el mejor utilizando como criterio aquel que presente un mayor coeficiente de determinación (R2).
+
+```{r regresion_lineal3}
+(gender_model3 <- lm(Survived~Pclass+Fare, data=titanic))
+summary(gender_model3)$r.squared
 ```
 
 Vemos que habian 313 mujeres y 578 hombres lo que representa un 35,13% de mujeres y un 64,87% de hombres en el conjunto de entrenamiento. Ahora relacionemos esta información con la sobrevivencia de los pasajeros y tambien la tasa de sobrevivencia de los niños.
 
 ```{r}
+#   Con respecto al Sexo de las personas podemos ver la siguiente distribucion
+table(titanic$Sex)
+```
+
+```{r}
 #   Siguiendo el contexto del problema examinemos el sexo de los sobrevivientes
-table(train$Sex,train$Survived)
-Surv_age <- ifelse(train$Age<=18,"Niño","Adulto") 
-table(Surv_age,train$Survived)
-table(Surv_age,train$Survived, by=train$Sex) # Sobrevivieron mas niñas que niños
+table(titanic$Sex,titanic$Survived)
+Surv_age <- ifelse(titanic$Age<=18,"Niño","Adulto") 
+table(Surv_age,titanic$Survived)
+table(Surv_age,titanic$Survived, by=titanic$Sex) # Sobrevivieron mas niñas que niños
 ```
 
 Ahora comparemos usando arboles decision como metodo para generar un modelo predictivo.
 
 ```{r}
 #   Tomamos un subconjunto de los mismos
-training <- subset(train,select=-c(PassengerId,Name,Ticket,Cabin))
-modelo_arbol <- rpart(Survived ~ ., data=training,method="class")
+titanic2 <- subset(titanic,select=-c(PassengerId,Name,Ticket,Cabin))
+modelo_arbol <- rpart(Survived ~ ., data=titanic2,method="class")
+#arbol de decisión
+rpart.plot(modelo_arbol)
 
-prediction <- predict(modelo_arbol,training[,-1])
+prediction <- predict(modelo_arbol,titanic2[,-1])
 prediction <- ifelse(prediction<0.5,0,1)
-matriz_conf <- table(prediction = prediction[,2], true = training[,1])
+matriz_conf <- table(prediction = prediction[,2], true = titanic2[,1])
 matriz_conf
 ```
 
 De acuerdo a la matriz de confusión tenemos el mismo indice de acierto y de desacierto que teniamos inicialmente, con una pequeña variacion entre falsos positivos y falsos negativos. 
 
+__Análisis de supervivencia__
+
+```{r}
+flex <- flexsurvreg(Surv(Age,Survived) ~ 1, data = titanic, dist = "exp")  #Ajuste exponencial
+flex
+
+# Guardando el Objeto Surv
+titanic.surv <- Surv(titanic$Age,titanic$Survived)  #Creando objeto tipo Surv
+titanic.km <- survfit(titanic.surv ~ 1, data = titanic, type = "kaplan-meier")  #Estimación Kaplan Meier
+summary(titanic.km)
+```
+
+La estimación devuelve los siguientes valores:
+
+- time : Tiempo de la observación
+- n.risk : El número de sujetos en riesgo.
+- n.evento : El número de sujetos que presentaron el evento.
+- survival : La estimación de la función de supervivencia.
+- std.err : La desviación estándar de la estimación.
+- lower y upper CI* : Los intervalos de confianza para la estimación.
+
+La función survfit() devuelve un resumen de la estimación, la información se puede acceder agregando el símbolo “$” seguido del nombre del elemento de la lista.
+
+Una mejor manera de extraer la información es utilizando la función fortify() sobre el objeto survfit, esta función devuelve un data.frame con la información. Al tener presencia de covariables se anexa la columna llamada strata.
+
+```{r}
+# Ahora veamos la tasa de supervivencia de las personas segun la clase con la
+# que abordaron
+table(titanic$Survived,titanic$Pclass)
+```
+Ciertamente, los pasajeros de primera clase tienen un indice de sobrevivencia claramente mas alto que las otras dos clases. Los pasajeros de segunda clase tenian casi la misma proporcion de pasajeros vivos y muertos y la tercera clase esta claramente en desventaja a la hora de poder alcanzar un bote salvavidas.
+
+__Desviación estándar e Intervalos de confianza de la estimación de la función de supervivencia__
+
+Tanto como la desviación estándar y los Intervalos de confianza de la curva de supervivencia es estimada mediante la función survfit() con los siguientes argumentos:
+
+- error: Tipo de estimación para las desviaciones, los posibles valores son “greenwood”(defecto) para la fórmula de Greenwodd o “tsiatis” para la fórmula de Tsiatis/Aalen.
+- conf.type: Tipo de transformación para calcular los intervalos de confianza, “plain”, “log”(defecto), *“log-log”.
+- conf.int: El nivel de confianza para el intervalo de confianza (.95 por defecto).
+
+```{r}
+titanic.km <- survfit(Surv(Age,Survived) ~ 1, data = titanic, type = "kaplan-meier", 
+    error = "tsiatis", conf.type = "log-log", conf.int = 0.99)
+
+summary(titanic.km)
+```
+
+\newpage
+
 ## 5. Visualización
 __Representación de los resultados a partir de tablas y gráficas__
 
 ```{r}
-#acp
-# autoplot(prcomp(cuant))
-train$Survived <- as.factor(train$Survived)
-autoplot(prcomp(cuant), data = train, colour = 'Survived',
-         loadings = TRUE, loadings.colour = 'blue',
-         loadings.label = TRUE, loadings.label.size = 3)
+counts = table(titanic$Survived, titanic$Sex)
+barplot(counts, 
+        main = "Titanic Survival Counts by Passenger Sex",
+        xlab = "Passenger Sex", 
+        ylab = "Count",
+        col = topo.colors(2),  
+        beside = TRUE)
 
- train.pca2 <- prcomp(cuant,scale.=TRUE)
- g<-ggbiplot(train.pca2, obs.scale=1, var.scale=1,  ellipse=TRUE, circle=TRUE)
- g<-g+scale_color_discrete(name="")
- print(g)
+legend("topleft", 
+       inset =.03,
+       legend = c("died", "survived"), 
+       fill = topo.colors(2), 
+       horiz = TRUE)
 
-#Correlación
-corrplot.mixed(M, lower.col = "black", number.cex = .7)
+# STACKED BAR CHART WITH COLORS AND LEGEND
+counts = table(titanic$Survived, titanic$Pclass)
 
-#arbol de decisión
-rpart.plot(modelo_arbol)
+# CONSTRUCT BARCHART
+barplot(counts, 
+        main = "Titanic Survival Rates by Passenger Class",
+        xlab = "Passenger Class", 
+        col = terrain.colors(2))
 
+# ADD LEGEND
+legend("topleft", 
+       inset = .03,
+       legend = c("died", "survived"), 
+       fill = terrain.colors(2), 
+       horiz = TRUE)
 ```
 
-Las variables Survived y Fare estan altamente correlacionadas.
+__Graficación de la curva de supervivencia__
+
+La curva de supervivencia estimada se gráfica con la función ggsurvplot() de la paquetería survminer, está gráfica esta hecha utilizando la librería ggplot2 y contiene un numero grande de parámetros, por lo que solamente ilustraremos los más importantes y se recomienda revisar los demás utilizando el comando help("ggsurvplot").
+
+- fit: Objeto tipo survfit.
+- data: Un conjunto de datos utilizado para ajustar curvas de supervivencia.
+- fun: Transformación de la curva de supervivencia(Opcional), las posibles opciones son: “event” para los eventos acumulados, “cumhaz” para el riesgo acumulado y “pct” para la curva de supervivencia en porcentaje.
+- conf.int: Indicador para graficar los intervalos de confianza.
+- title: Titulo
+- xlab: Eje x
+- ylab: Eje Y
+- legends.lab: Vector de nombres para identificar las curvas.
+- legend.title : Titulo de la leyenda.
+```{r}
+ggsurvplot(fit = titanic.km, data = titanic, conf.int = T, title = "Curva de Supervivencia", 
+    xlab = "Tiempo", ylab = "Probabilidad de supervivencia", legend.title = "Estimación", 
+    legend.labs = "Kaplan-Meier")
+```
+
+\newpage
 
 ## 6. Resolución del problema. 
 
-A partir de los resultados obtenidos, ¿cuáles son las conclusiones? ¿Los resultados permiten responder al problema?
+- Con el análisis de correlación pude conocer cuáles de las variables inicales variables ejercen una mayor influencia para analizar/predecir la superviviencia de los pasajeros del titanic.
 
+- Se ha hecho un preprocesamiento para manejar los casos de ceros o elementos vacíos y valores extremos (outliers). Hice una imputación de datos faltantes en las variables Age y Fare y así conservamos la totalidad de los datos y no eliminamos registros del conjunto de datos inicial.
+
+- Los datos outliers los he conservado porque he comprobado que la variable Fare pertenece a personas que pagaron un ticket de primera clase.
+
+- Podmemos concluir que en efecto, mas pasajeros mujeres que hombres sobrevivieron, por lo que podemos establecer una prioridad a la hora del abordaje de los botes salvavidas. Con los niños no fue tanto el caso. La proporción esta mas equilibrada casi al punto de que la la mitad de los niños y las niñas sobrevivieron, con una leve inclinacion a la proporcion en los niños.
+
+- Con los árboles de decisión y usando los pasajeros el Titánic, obtendremos que aquellos individuos que murieron y que no murieron presentaron diferencias, y la regresión logística lo que hará será detectar estas diferencias entre el desenlace de muerte/sobrevida y entre ellas mismas. Al final la máquina nos dirá cuáles fueron las más poderosas, y el investigador podrá decir y darle un número a cada una de ellas para crear un algoritmo o regla con puntos o valores para cada variable. Por ejemplo, darle 2 puntos a ser de primera clase, 1 punto al sexo, 1 a la edad, etc.
+
+- Como pueden notar, no existe UNO solo que sea un factor infalible a la hora de predecir sobrevida. Habrá algunos más fuertes que otros; por ejemplo, ser de primera clase es el factor más fuerte y predictor de sobrevida, aunque no es garantía (ya que murieron 4 personas, incluyendo una niña de 4 años de primera clase). Pero si eres menor de 10 años, niña, y en primera clase, tus probabilidades se irán al casi 100% de supervivencia y de que llegues a Nueva York sano y salvo.
 
 
 ## 7. Código
 
-Hay que adjuntar el código, preferiblemente en R, con el que se ha realizado la limpieza, análisis y representación de los datos. Si lo preferís, también podéis trabajar en Python.
+El código de la práctica esta implicito en cada uno de los chunck del reporte.
 
 \newpage
 
-#8. Referencias
+#Referencias
 
 Los siguientes recursos son de utilidad para la realización de la práctica:
 
