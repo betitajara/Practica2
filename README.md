@@ -52,3 +52,4 @@ Queenstown, S = Southampton)
 - betitajara_PRAC2.RMD: Código con el que se genera el reporte de la práctica
 - betitajara_PRAC2.pdf: Respuestas a las preguntas
 - train.csv: Dataset usado en el análisis en formato CSV
+- titanic.csv: Dataset final con los datos finales analizados
