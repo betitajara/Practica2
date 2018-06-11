@@ -20,14 +20,13 @@ Esta práctica es parte de la asignatura Tipología y ciclo de vida de los datos
 Trabajo realizado de forma individual por Beatriz Elena Jaramillo Gallego.
 
 ### Descripción del dataset
-Los datos para el análisis se ha obtenido a partir de este enlace en Kaggle Titanic: Machine Learning from Disaster (https://www.kaggle.com/c/titanic) y está constituido por 12 (variables) que presentan 891 pasajeros(filas o registros) en el archivo de train y 418 pasajeros(filas o registros) en el archivo de test.
+Los datos para el análisis se ha obtenido a partir de este enlace en Kaggle Titanic: Machine Learning from Disaster (https://www.kaggle.com/c/titanic) y los datos se encuentran en el archivo train.csv que está constituido por 12 (variables) que presentan 891 pasajeros(filas o registros) en el archivo de train.
 
-Los datos se han dividido en dos grupos:
-* Conjunto de entrenamiento (train.csv): El conjunto de entrenamiento se debe usar para construir sus
-modelos de aprendizaje automático
-* Conjunto de prueba (test.csv): El conjunto de prueba se debe usar para ver qué tan bien se desempeña
-su modelo en datos no vistos.
-
+<div style="width: 100%; clear: both;">
+<div style="float: left; width: 50%;">
+<img src=https://github.com/betitajara/Practica2/blob/master/titanic.jpg", align="center">
+</div>
+                                                                                         
 __Variables__
 * PassengerId: Un identificador numerico del pasajero. Es una variable númerica.
 * Survived: Varibale binaria donde se indica si el pasajero sobrevivio o no. (0 = No, 1 = Yes)
