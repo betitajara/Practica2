@@ -540,6 +540,11 @@ ggsurvplot(fit = titanic.km, data = titanic, conf.int = T, title = "Curva de Sup
     legend.labs = "Kaplan-Meier")
 ```
 
+__Guardar fichero final__
+```{r}
+write.csv(titanic, file = "titanic.csv")
+```
+
 \newpage
 
 ## 6. Resolución del problema. 
